@@ -1,9 +1,13 @@
 #include <map>
 #include <iomanip>
 #include <string>
-#include "ZipCodeRecordBuffer.h"
 #include <iostream>
 #include <limits> // For numeric_limits
+#include <sstream>
+#include <fstream>
+#include "ZipCodeRecordBuffer.h"
+#include "HeaderBuffer.h"
+#include "convertCSV.h"
 
 using namespace std;
 
@@ -20,9 +24,10 @@ struct StateRecord {
 };
 
 int main() {
+	binaryToCSV(); // Convert CSV to binary and back to CSV
     map<string, StateRecord> all_states;
     ZipCodeRecordBuffer buffer;
-    ifstream file("../Data/us_postal_rand.csv");
+    ifstream file("Data/converted_postal_codes.csv");
 
     if (!file.is_open()) {
         cerr << "Error opening file." << endl;
