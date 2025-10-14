@@ -50,4 +50,4 @@ private:
     std::string creationDate;  // variable-length string
 };
 
-#endif // HeaderRecordBuffer_H
+#endif // HeaderBuffer_H
