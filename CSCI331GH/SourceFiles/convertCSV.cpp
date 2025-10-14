@@ -18,8 +18,11 @@ void processFile(string& inputFileName, const string& outputFileName) {
     ifstream inputFile(inputFileName);
     ofstream outputFile(outputFileName, ios::binary);
 
-    if (!inputFile.is_open() || !outputFile.is_open()) {
-        cerr << "Error opening file!" << endl;
+    if (!inputFile.is_open()) {
+        cerr << "Error opening file " << inputFileName << endl;
+    }
+    else if (!outputFile.is_open()) {
+        cerr << "Error opening file " << outputFileName << endl;
         return;
     }
 
@@ -89,10 +92,10 @@ void lenRead(ofstream& output, const string& record) {
 }
 
 void binaryToCSV() {
-    string inputBFileName = "Data/us_postal_codes.csv";
-    string outputBFileName = "Data/new_postal_codes.csv";
-	string inputCSVFile = "Data/new_postal_codes.csv";
-	string outputCSVFile = "Data/converted_postal_codes.csv";
+    string inputBFileName = "../CSCI331GH/Data/us_postal_codes.csv";
+    string outputBFileName = "../CSCI331GH/Data/new_postal_codes.csv";
+	string inputCSVFile = "../CSCI331GH/Data/new_postal_codes.csv";
+	string outputCSVFile = "../CSCI331GH/Data/converted_postal_codes.csv";
 
     processFile(inputBFileName, outputBFileName);
 	readBinaryFile(inputCSVFile, outputCSVFile);
