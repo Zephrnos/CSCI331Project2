@@ -5,6 +5,7 @@
 #include "convertCSV.h"
 #include "readBinaryFile.h"
 #include "HeaderBuffer.h"
+#include "IndexManager.h"
 #include <algorithm>
 #include <cctype>
 using namespace std;
@@ -25,7 +26,6 @@ void processFile(string& inputFileName, const string& outputFileName) {
         cerr << "Error opening file " << outputFileName << endl;
         return;
     }
-
 
     HeaderRecordBuffer header;
     header.setVersion(1); // Or appropriate version
@@ -80,6 +80,10 @@ void processFile(string& inputFileName, const string& outputFileName) {
         lenRead(outputFile, line);
     }
 
+    IndexManager index;
+    index.buildIndex(outputFileName); // Scan binary file for ZIP → offset map
+    index.writeIndex("Data/zip.idx"); // Save index to Data folder
+
     inputFile.close();
     outputFile.close();
 }
@@ -92,12 +96,11 @@ void lenRead(ofstream& output, const string& record) {
 }
 
 void binaryToCSV() {
-    string inputBFileName = "../CSCI331GH/Data/us_postal_codes.csv";
-    string outputBFileName = "../CSCI331GH/Data/new_postal_codes.csv";
-	string inputCSVFile = "../CSCI331GH/Data/new_postal_codes.csv";
-	string outputCSVFile = "../CSCI331GH/Data/converted_postal_codes.csv";
+    string inputCSVFileName = "Data/us_postal_codes.csv";
+    string binaryFile = "Data/zip_len.dat";
+	string outputCSVFile = "Data/converted_postal_codes.csv";
 
-    processFile(inputBFileName, outputBFileName);
-	readBinaryFile(inputCSVFile, outputCSVFile);
+    processFile(inputCSVFileName, binaryFile);
+	readBinaryFile(binaryFile, outputCSVFile);
 
 }
