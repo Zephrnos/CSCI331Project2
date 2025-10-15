@@ -27,7 +27,7 @@ int main() {
 	binaryToCSV(); // Convert CSV to binary and back to CSV
     map<string, StateRecord> all_states;
     ZipCodeRecordBuffer buffer;
-    ifstream file("Data/converted_postal_codes.csv");
+    ifstream file("../CSCI331GH/Data/converted_postal_codes.csv");
 
     if (!file.is_open()) {
         cerr << "Error opening file." << endl;

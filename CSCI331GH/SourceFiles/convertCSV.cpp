@@ -19,8 +19,11 @@ void processFile(string& inputFileName, const string& outputFileName) {
     ifstream inputFile(inputFileName);
     ofstream outputFile(outputFileName, ios::binary);
 
-    if (!inputFile.is_open() || !outputFile.is_open()) {
-        cerr << "Error opening file!" << endl;
+    if (!inputFile.is_open()) {
+        cerr << "Error opening file " << inputFileName << endl;
+    }
+    else if (!outputFile.is_open()) {
+        cerr << "Error opening file " << outputFileName << endl;
         return;
     }
 
