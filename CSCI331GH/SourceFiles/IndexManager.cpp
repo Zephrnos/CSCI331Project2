@@ -2,6 +2,9 @@
 #include "ZipCodeRecordBuffer.h"
 #include "HeaderBuffer.h"
 #include <sstream>
+#include <algorithm> // for remove, remove_if, all_of
+#include <cctype>    // for isspace, isdigit
+#include <iostream>
 
 /**
  * @brief Builds the index by scanning through the binary data file.
@@ -24,30 +27,33 @@ void IndexManager::buildIndex(const std::string& dataFileName) {
         return;
     }
 
-
-    
     uint64_t offset = 0;
     uint32_t recordLength = 0;
-    uint32_t count = 0;
 
     while (dataFile.read(reinterpret_cast<char*>(&recordLength), sizeof(recordLength))) {
-    offset = static_cast<uint64_t>(dataFile.tellg()); 
-    std::string record(recordLength, '\0');
-    dataFile.read(&record[0], recordLength);
+        offset = static_cast<uint64_t>(dataFile.tellg()); 
+        std::string record(recordLength, '\0');
+        dataFile.read(&record[0], recordLength);
 
-    std::istringstream ss(record);
-    std::string zip;
-    std::getline(ss, zip, ',');
+        std::istringstream ss(record);
+        std::string zip;
+        std::getline(ss, zip, ',');
 
-    zip.erase(remove(zip.begin(), zip.end(), '"'), zip.end());
-    zip.erase(remove_if(zip.begin(), zip.end(), ::isspace), zip.end());
-    if (zip == "ZipCode" || zip.empty()) continue;
+        // Remove quotes
+        zip.erase(std::remove(zip.begin(), zip.end(), '"'), zip.end());
+        // Remove whitespace
+        zip.erase(std::remove_if(zip.begin(), zip.end(),
+            [](char c){ return std::isspace(static_cast<unsigned char>(c)); }),
+            zip.end());
 
-    if (std::all_of(zip.begin(), zip.end(), ::isdigit)) {
-        indexMap[zip] = offset;
-        count++;
+        if (zip == "ZipCode" || zip.empty()) continue;
+
+        // Only keep numeric ZIP codes
+        if (std::all_of(zip.begin(), zip.end(),
+            [](char c){ return std::isdigit(static_cast<unsigned char>(c)); })) {
+            indexMap[zip] = offset;
+        }
     }
-}
 
     dataFile.close();
 }
