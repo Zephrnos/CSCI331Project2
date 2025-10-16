@@ -19,73 +19,63 @@ void processFile(string& inputFileName, const string& outputFileName) {
     ifstream inputFile(inputFileName);
     ofstream outputFile(outputFileName, ios::binary);
 
-    if (!inputFile.is_open()) {
-        cerr << "Error opening file " << inputFileName << endl;
-    }
-    else if (!outputFile.is_open()) {
-        cerr << "Error opening file " << outputFileName << endl;
+    if (!inputFile.is_open() || !outputFile.is_open()) {
+        cerr << "Error opening files in processFile." << endl;
         return;
     }
 
-    HeaderRecordBuffer header;
-    header.setVersion(1); // Or appropriate version
+    // --- 1. DEFINE YOUR NEW, DETAILED FILE STRUCTURE ---
+    HeaderRecordBuffer header; // This is now your powerful header class
+    
+    // Set all the metadata
+    header.version = 2; // Let's call this version 2 of our file format
+    header.indexFileName = "Data/zip.idx";
+    header.primaryKeyFieldIndex = 0; // The first field, "ZipCode", is the key
+    
+    // Define the schema for each field in your record
+    header.fields.push_back({"ZipCode", DataType::STRING});
+    header.fields.push_back({"PlaceName", DataType::STRING});
+    header.fields.push_back({"State", DataType::STRING});
+    header.fields.push_back({"County", DataType::STRING});
+    header.fields.push_back({"Latitude", DataType::DOUBLE});
+    header.fields.push_back({"Longitude", DataType::DOUBLE});
 
-    // Calculate number of records (lines) in the input file. We assume each CSV line
-    // corresponds to one record. Skip the header line if present.
-    streampos originalPos = inputFile.tellg();
+    // --- 2. COUNT RECORDS (Your existing logic is fine) ---
+    // Note: This part can be simplified slightly.
     uint32_t recordCount = 0;
     string tempLine;
-    bool first = true;
-
-    // Count lines
+    getline(inputFile, tempLine); // Read and discard the header line
     while (std::getline(inputFile, tempLine)) {
-        if (first) { // Skip header line
-            first = false;
-            continue;
-        }
-        
         if (!tempLine.empty()) {
             ++recordCount;
         }
     }
+    header.recordCount = recordCount; // Set the count
 
-    // Reset stream to beginning to write records after header
-    inputFile.clear();
-    inputFile.seekg(0, std::ios::beg);
-
-    // If the CSV has a header row, consume it and adjust the count.
-    // Here we attempt to be conservative: if the first non-empty line contains
-    // alphabetic characters and commas, assume it's a header and subtract 1.
-    streampos posAfterPeek = inputFile.tellg();
-    if (std::getline(inputFile, tempLine)) {
-        bool looksLikeHeader = (tempLine.find(',') != std::string::npos &&
-                               std::any_of(tempLine.begin(), tempLine.end(), ::isalpha));
-        if (looksLikeHeader && recordCount > 0) {
-            --recordCount;
-        }
-    }
-
-    // Reset to beginning again so subsequent record reads start from the first data line
-    inputFile.clear();
-    inputFile.seekg(0, std::ios::beg);
-
-    header.setRecordCount(recordCount);
-    header.setCreationDate("2025-10-14"); // Use desired date format
+    // --- 3. WRITE THE NEW HEADER ---
+    // The new writeHeader() will handle all the complex serialization.
     header.writeHeader(outputFile);
+    
+    // --- 4. WRITE THE DATA RECORDS ---
+    inputFile.clear();
+    inputFile.seekg(0, std::ios::beg);
+    getline(inputFile, tempLine); // Skip header line again to get to the data
 
     string line;
-
     while (getline(inputFile, line)) {
-        // Call your length-prefixed writing function correctly
-        lenRead(outputFile, line);
+        if (!line.empty()) {
+            lenRead(outputFile, line); // This function doesn't need to change
+        }
     }
-
+    
+    // ... (The rest of the function remains the same)
     IndexManager index;
-    index.buildIndex(outputFileName); // Scan binary file for ZIP → offset map
-    index.writeIndex("Data/zip.idx"); // Save index to Data folder
+    index.buildIndex(outputFileName); 
+    index.writeIndex(header.indexFileName); // Use the filename from the header
 
     inputFile.close();
     outputFile.close();
+    cout << "Binary file and index created successfully with new header format." << endl;
 }
 
 // Consider renaming lenRead to something more descriptive!
