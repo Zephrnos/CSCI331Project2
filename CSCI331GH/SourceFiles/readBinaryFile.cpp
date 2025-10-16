@@ -24,13 +24,12 @@ void readBinaryFile(const string& inputFileName, const string& outputFileName) {
     }
 
     // Read header first
-    HeaderRecordBuffer header; // This is now your detailed header object
+    HeaderRecordBuffer header;
     if (!header.readHeader(inputFile)) {
         cerr << "Failed to read header record!" << endl;
         return;
     }
 
-    // --- DISPLAY THE NEW, CORRECTLY ACCESSED METADATA ---
     cout << "--- File Header Information ---" << endl;
     cout << "File Type:       " << header.fileStructureType << endl;
     cout << "Version:         " << header.version << endl;
