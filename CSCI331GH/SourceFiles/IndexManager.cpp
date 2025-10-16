@@ -1,10 +1,12 @@
 #include "IndexManager.h"
 #include "ZipCodeRecordBuffer.h"
 #include "HeaderBuffer.h"
+
 #include <sstream>
-#include <algorithm> // for remove, remove_if, all_of
-#include <cctype>    // for isspace, isdigit
+#include <algorithm>
+#include <cctype>
 #include <iostream>
+#include <fstream>
 
 /**
  * @brief Builds the index by scanning through the binary data file.
@@ -31,7 +33,7 @@ void IndexManager::buildIndex(const std::string& dataFileName) {
     uint32_t recordLength = 0;
 
     while (dataFile.read(reinterpret_cast<char*>(&recordLength), sizeof(recordLength))) {
-        offset = static_cast<uint64_t>(dataFile.tellg()); 
+        offset = static_cast<uint64_t>(dataFile.tellg());
         std::string record(recordLength, '\0');
         dataFile.read(&record[0], recordLength);
 
@@ -39,12 +41,10 @@ void IndexManager::buildIndex(const std::string& dataFileName) {
         std::string zip;
         std::getline(ss, zip, ',');
 
-        // Remove quotes
+        // Remove quotes and whitespace
         zip.erase(std::remove(zip.begin(), zip.end(), '"'), zip.end());
-        // Remove whitespace
         zip.erase(std::remove_if(zip.begin(), zip.end(),
-            [](char c){ return std::isspace(static_cast<unsigned char>(c)); }),
-            zip.end());
+            [](char c){ return std::isspace(static_cast<unsigned char>(c)); }), zip.end());
 
         if (zip == "ZipCode" || zip.empty()) continue;
 
@@ -123,8 +123,5 @@ void IndexManager::readIndex(const std::string& indexFileName) {
  */
 uint64_t IndexManager::findOffset(const std::string& zip) const {
     auto it = indexMap.find(zip);
-    if (it != indexMap.end()) {
-        return it->second;
-    }
-    return UINT64_MAX; // not found
+    return (it != indexMap.end()) ? it->second : UINT64_MAX;
 }

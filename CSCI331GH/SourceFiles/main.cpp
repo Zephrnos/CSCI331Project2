@@ -12,28 +12,37 @@
 
 using namespace std;
 
-// A struct to hold the four extreme zip codes AND their coordinates.
+// Struct to hold the four extreme zip codes for each state
 struct StateRecord {
     string easternmost_zip;
-    double easternmost_lon = -numeric_limits<double>::max(); // Initialize with a very small number
+    double easternmost_lon = -numeric_limits<double>::max();
     string westernmost_zip;
-    double westernmost_lon = numeric_limits<double>::max();  // Initialize with a very large number
+    double westernmost_lon = numeric_limits<double>::max();
     string northernmost_zip;
     double northernmost_lat = -numeric_limits<double>::max();
     string southernmost_zip;
     double southernmost_lat = numeric_limits<double>::max();
 };
 
-int main() {
-    binaryToCSV(); // Convert CSV to binary and back to CSV
+int main(int argc, char* argv[]) {
+    // --- Step 1: Ensure binary and index exist ---
+    const string binaryFile = "Data/zip_len.dat";
+    const string indexFile = "Data/zip.idx";
 
-    // --- Part 1: Compute state extremes ---
+    ifstream testBin(binaryFile, ios::binary);
+    if (!testBin.good()) {
+        cout << "Binary or index missing — rebuilding from CSV...\n";
+        binaryToCSV(); // creates zip_len.dat and zip.idx
+    }
+    testBin.close();
+
+    // --- Part 1: Compute state extremes (from converted CSV) ---
     map<string, StateRecord> all_states;
     ZipCodeRecordBuffer buffer;
-    ifstream file("../CSCI331GH/Data/converted_postal_codes.csv");
+    ifstream file("Data/converted_postal_codes.csv");
 
     if (!file.is_open()) {
-        cerr << "Error opening file." << endl;
+        cerr << "Error opening Data/converted_postal_codes.csv" << endl;
         return 1;
     }
 
@@ -51,16 +60,14 @@ int main() {
         }
 
         StateRecord& record = all_states[state];
-
         if (longitude > record.easternmost_lon) { record.easternmost_lon = longitude; record.easternmost_zip = zip; }
         if (longitude < record.westernmost_lon) { record.westernmost_lon = longitude; record.westernmost_zip = zip; }
         if (latitude > record.northernmost_lat) { record.northernmost_lat = latitude; record.northernmost_zip = zip; }
         if (latitude < record.southernmost_lat) { record.southernmost_lat = latitude; record.southernmost_zip = zip; }
     }
     file.close();
-
-    
-/*  //Used for project 1, unsure if we still need this for project 2
+/* Extreme headers for zipcode project 1
+    // Print state extremes summary
     cout << left << setw(8) << "State"
          << setw(15) << "Easternmost"
          << setw(15) << "Westernmost"
@@ -69,8 +76,6 @@ int main() {
          << "\n";
     cout << string(68, '-') << "\n";
 */
-
-
     for (const auto& pair : all_states) {
         const auto& record = pair.second;
         cout << left << setw(8) << pair.first
@@ -81,34 +86,45 @@ int main() {
              << "\n";
     }
 
-    // --- Part 2: Look up ZIP code(s) using the index ---
+    // --- Part 2: Load index and handle ZIP code flags ---
     IndexManager index;
     index.readIndex("Data/zip.idx");
 
-    string zipInput;
-    cout << "\nEnter a ZIP code to look up (or 'exit' to quit): ";
-    while (cin >> zipInput) {
-        if (zipInput == "exit") break;
+    cout << "\n--- ZIP Code Search Results ---\n";
 
-        uint64_t offset = index.findOffset(zipInput);
-        if (offset == UINT64_MAX) {
-            cerr << "ZIP code " << zipInput << " not found.\n";
-        } else {
-            ifstream binFile("Data/zip_len.dat", ios::binary);
-            if (!binFile.is_open()) {
-                cerr << "Error opening binary file.\n";
+    bool foundAny = false;
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+
+        // Look for flags that start with "-Z"
+        if (arg.rfind("-Z", 0) == 0 && arg.size() > 2) {
+            string zipInput = arg.substr(2); // Get the ZIP after "-Z"
+            foundAny = true;
+
+            uint64_t offset = index.findOffset(zipInput);
+            if (offset == UINT64_MAX) {
+                cout << "ZIP code " << zipInput << " not found.\n";
                 continue;
             }
 
-            binFile.seekg(offset);
+            ifstream binFile("Data/zip_len.dat", ios::binary);
+            if (!binFile.is_open()) {
+                cerr << "Error opening binary data file.\n";
+                return 1;
+            }
+
+            binFile.seekg(offset, ios::beg);
+
             uint32_t recordLength;
             binFile.read(reinterpret_cast<char*>(&recordLength), sizeof(recordLength));
+
             string record(recordLength, '\0');
             binFile.read(&record[0], recordLength);
 
             ZipCodeRecordBuffer zipBuffer;
             istringstream ss(record);
             if (zipBuffer.ReadRecord(ss)) {
+                cout << "---------------------------------------------\n";
                 cout << "ZIP Code: " << zipBuffer.getZipCode() << "\n"
                      << "Place Name: " << zipBuffer.getPlaceName() << "\n"
                      << "State: " << zipBuffer.getState() << "\n"
@@ -118,10 +134,15 @@ int main() {
             } else {
                 cerr << "Error parsing record for ZIP code " << zipInput << endl;
             }
+
             binFile.close();
         }
-        cout << "\nEnter another ZIP code (or 'exit' to quit): ";
     }
 
+    if (!foundAny) {
+        cout << "No ZIP codes provided. Use flags like: -Z56301 -Z90210\n";
+    }
+
+    cout << "\nProgram complete.\n";
     return 0;
 }
