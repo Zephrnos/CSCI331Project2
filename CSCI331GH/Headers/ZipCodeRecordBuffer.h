@@ -21,88 +21,45 @@ public:
         for (int i = 0; i < 6; ++i) m_fields[i] = "";
     }
 
-    // Reads until a valid data record is found or EOF; returns true when a valid record is parsed
+    // Reads a single, valid 6-field data record from a stream
     bool ReadRecord(std::istream& file) {
         std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty()) continue;
+        if (std::getline(file, line)) {
+            if (line.empty()) return false;
 
-            // parse CSV fields (simple split by comma) - handle up to 7 columns
             std::vector<std::string> fields;
             std::istringstream ss(line);
             std::string token;
             while (std::getline(ss, token, ',')) {
                 trim(token);
-                // remove surrounding quotes
                 if (token.size() >= 2 && token.front() == '"' && token.back() == '"') {
                     token = token.substr(1, token.size() - 2);
                     trim(token);
                 }
                 fields.push_back(token);
             }
+            
+            // Expect exactly 6 fields for a valid zip data record
+            if (fields.size() != 6) return false;
+            
+            // Map into m_fields
+            m_fields[0] = truncateTo(fields[0], ZIP_CODE_LENGTH);
+            m_fields[1] = truncateTo(fields[1], PLACE_NAME_LENGTH);
+            m_fields[2] = truncateTo(fields[2], STATE_LENGTH);
+            m_fields[3] = truncateTo(fields[3], COUNTY_LENGTH);
+            std::string latStr = truncateTo(fields[4], LAT_LONG_LENGTH);
+            std::string lonStr = truncateTo(fields[5], LAT_LONG_LENGTH);
 
-            // If not 6 or 7 fields, skip line
-            if (fields.size() < 6) continue;
-            if (fields.size() > 7) {
-             // keep first 6 tokens (or merge extras into the last token)
-            fields.resize(6);
-            }
-            bool hasRecordLength = false;
-            // Detect optional RecordLength field: treat as numeric integer (all digits)
-            if (fields.size() == 7) {
-                const std::string &f0 = fields[0];
-                bool allDigits = !f0.empty() && std::all_of(f0.begin(), f0.end(), [](unsigned char c){
-                    return std::isdigit(c);
-                });
-                if (allDigits) hasRecordLength = true;
-                else {
-                    // maybe header with "RecordLength" text: skip header
-                    std::string up0 = f0;
-                    std::transform(up0.begin(), up0.end(), up0.begin(), [](unsigned char c){ return std::toupper(c); });
-                    if (up0.find("RECORD") != std::string::npos) continue;
-                    // otherwise, accept as 7th field but treat as not record length (rare)
-                }
-            }
-
-            // Determine indices for fields: if hasRecordLength, zip is fields[1], else fields[0]
-            int zipId = hasRecordLength ? 1 : 0;
-            int placeId = zipId + 1;
-            int stateId = zipId + 2;
-            int countyId = zipId + 3;
-            int latId = zipId + 4;
-            int lonId = zipId + 5;
-
-            // Basic header detection: if zip field contains "ZIP" or "POSTAL", skip
-            std::string zipCandidate = fields[zipId];
-            std::string upZip = zipCandidate;
-            std::transform(upZip.begin(), upZip.end(), upZip.begin(), [](unsigned char c){ return std::toupper(c); });
-            if (upZip.find("ZIP") != std::string::npos || upZip.find("POSTAL") != std::string::npos) {
-                continue;
-            }
-
-            // Now map into m_fields (we always keep 6 logical fields)
-            m_fields[0] = truncateTo(fields[zipId], ZIP_CODE_LENGTH);
-            m_fields[1] = truncateTo(fields[placeId], PLACE_NAME_LENGTH);
-            m_fields[2] = truncateTo(fields[stateId], STATE_LENGTH);
-            m_fields[3] = truncateTo(fields[countyId], COUNTY_LENGTH);
-            std::string latStr = truncateTo(fields[latId], LAT_LONG_LENGTH);
-            std::string lonStr = truncateTo(fields[lonId], LAT_LONG_LENGTH);
-
-            // Try converting lat/lon
             try {
-                // std::stod tolerates leading/trailing spaces
                 latitude = std::stod(latStr);
                 longitude = std::stod(lonStr);
             } catch (...) {
-                // malformed numeric fields -> skip line
-                continue;
+                return false; // malformed lat/lon
             }
 
-            // success
-            return true;
+            return true; // Success
         }
-        // EOF reached without a valid data record
-        return false;
+        return false; // EOF
     }
 
     std::string getZipCode() const { return m_fields[0]; }

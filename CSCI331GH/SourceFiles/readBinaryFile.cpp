@@ -8,8 +8,6 @@
 
 using namespace std;
 
-
-
 void readBinaryFile(const string& inputFileName, const string& outputFileName) {
     ifstream inputFile(inputFileName, ios::binary);
     ofstream outputFile(outputFileName);
@@ -18,7 +16,6 @@ void readBinaryFile(const string& inputFileName, const string& outputFileName) {
         cerr << "Error opening binary file!" << endl;
         return;
     }
-
     if (!outputFile.is_open()) {
         cerr << "Error opening CSV file!" << endl;
         return;
@@ -42,18 +39,23 @@ void readBinaryFile(const string& inputFileName, const string& outputFileName) {
     for (uint32_t i = 0; i < header.getRecordCount(); ++i) {
         uint32_t recordLength;
         if (!inputFile.read(reinterpret_cast<char*>(&recordLength), sizeof(recordLength))) {
-            cerr << "Error reading record length!" << endl;
+            if (inputFile.eof()) {
+                 cout << "Reached end of file unexpectedly. Processed " << i << " records." << endl;
+            } else {
+                 cerr << "Error reading record length for record " << i << "!" << endl;
+            }
             break;
         }
 
         string record(recordLength, '\0');
         if (!inputFile.read(&record[0], recordLength)) {
-            cerr << "Error reading record data!" << endl;
+            cerr << "Error reading record data for record " << i << "!" << endl;
             break;
         }
 
         ZipCodeRecordBuffer buffer;
         istringstream ss(record);
+        // Use the simplified ReadRecord which expects 6 fields
         if (buffer.ReadRecord(ss)) {
             outputFile << recordLength << ","
                 << buffer.getZipCode() << ","
@@ -64,16 +66,8 @@ void readBinaryFile(const string& inputFileName, const string& outputFileName) {
                 << buffer.getLongitude() << "\n";
         }
         else {
-            std::string head = record;
-            if (head.size() > 200) head.resize(200);
-            if (head.find("ZipCode") != std::string::npos && head.find("PlaceName") != std::string::npos)
-             {
-        // header row - skip
-        continue;
-            }   
-            std::cerr << "Error parsing record " << i << "! Raw record: '" << head << "'\n";
-            // optionally continue so you attempt to parse remaining records:
-             continue;
+            // REMOVED: The erroneous header check is no longer needed.
+            std::cerr << "Error parsing record " << i << "!\n";
          }
     }
 

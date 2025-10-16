@@ -6,10 +6,8 @@
 #include <sstream>
 #include <string>
 
-void lenRead(std::ofstream& output, const std::string& record);
-void processFile(std::string& inputFileName, const std::string& outputFileName);
-void binaryToCSV();
-
+// A single function to create both the binary file and its index.
+void createBinaryAndIndex(const std::string& inputCSV, const std::string& outputBinary, const std::string& outputIndex);
 
 
 #endif // convertCSV_h

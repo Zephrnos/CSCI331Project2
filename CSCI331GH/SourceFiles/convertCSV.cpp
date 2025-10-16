@@ -7,100 +7,77 @@
 #include "HeaderBuffer.h"
 #include "IndexManager.h"
 #include <algorithm>
-#include <cctype>
+#include <vector>
+
 using namespace std;
 
-//Authors: Team 5
-//Date: 2025-10-11
-/*Purpose: This file contains the implementation of functions to read a CSV file and
- write its contents to a binary file with length-prefixed records. */
+// Writes a string record to the output file with a 4-byte length prefix.
+void writeLengthPrefixedRecord(ofstream& output, const string& record) {
+    uint32_t recordLength = static_cast<uint32_t>(record.length());
+    output.write(reinterpret_cast<const char*>(&recordLength), sizeof(recordLength));
+    output.write(record.c_str(), recordLength);
+}
 
-void processFile(string& inputFileName, const string& outputFileName) {
+// Processes the CSV file to create the binary data file.
+void processFile(const string& inputFileName, const string& outputFileName) {
     ifstream inputFile(inputFileName);
     ofstream outputFile(outputFileName, ios::binary);
 
     if (!inputFile.is_open()) {
         cerr << "Error opening file " << inputFileName << endl;
+        return;
     }
-    else if (!outputFile.is_open()) {
+    if (!outputFile.is_open()) {
         cerr << "Error opening file " << outputFileName << endl;
         return;
     }
 
-    HeaderRecordBuffer header;
-    header.setVersion(1); // Or appropriate version
-
-    // Calculate number of records (lines) in the input file. We assume each CSV line
-    // corresponds to one record. Skip the header line if present.
-    streampos originalPos = inputFile.tellg();
-    uint32_t recordCount = 0;
+    // --- Count Records ---
+    // We count lines first to populate the header correctly.
     string tempLine;
-    bool first = true;
-
-    // Count lines
-    while (std::getline(inputFile, tempLine)) {
-        if (first) { // Skip header line
-            first = false;
-            continue;
-        }
-        
+    uint32_t recordCount = 0;
+    getline(inputFile, tempLine); // Skip header for counting
+    while (getline(inputFile, tempLine)) {
         if (!tempLine.empty()) {
-            ++recordCount;
+            recordCount++;
         }
     }
 
-    // Reset stream to beginning to write records after header
-    inputFile.clear();
-    inputFile.seekg(0, std::ios::beg);
-
-    // If the CSV has a header row, consume it and adjust the count.
-    // Here we attempt to be conservative: if the first non-empty line contains
-    // alphabetic characters and commas, assume it's a header and subtract 1.
-    streampos posAfterPeek = inputFile.tellg();
-    if (std::getline(inputFile, tempLine)) {
-        bool looksLikeHeader = (tempLine.find(',') != std::string::npos &&
-                               std::any_of(tempLine.begin(), tempLine.end(), ::isalpha));
-        if (looksLikeHeader && recordCount > 0) {
-            --recordCount;
-        }
-    }
-
-    // Reset to beginning again so subsequent record reads start from the first data line
-    inputFile.clear();
-    inputFile.seekg(0, std::ios::beg);
-
+    // --- Write Header ---
+    HeaderRecordBuffer header;
+    header.setVersion(1);
     header.setRecordCount(recordCount);
-    header.setCreationDate("2025-10-14"); // Use desired date format
+    header.setCreationDate("2025-10-16");
     header.writeHeader(outputFile);
 
+    // --- Write Records ---
+    // Reset file to read from the beginning again
+    inputFile.clear();
+    inputFile.seekg(0, ios::beg);
+
+    // CORRECTED: Explicitly skip the header row before writing records.
     string line;
+    getline(inputFile, line); 
 
     while (getline(inputFile, line)) {
-        // Call your length-prefixed writing function correctly
-        lenRead(outputFile, line);
+        if (!line.empty()) {
+            writeLengthPrefixedRecord(outputFile, line);
+        }
     }
-
-    IndexManager index;
-    index.buildIndex(outputFileName); // Scan binary file for ZIP → offset map
-    index.writeIndex("Data/zip.idx"); // Save index to Data folder
 
     inputFile.close();
     outputFile.close();
 }
 
-// Consider renaming lenRead to something more descriptive!
-void lenRead(ofstream& output, const string& record) {
-    uint32_t recordLength = static_cast<uint32_t>(record.length());
-    output.write(reinterpret_cast<const char*>(&recordLength), sizeof(recordLength)); // length prefix (uint32_t)
-    output.write(record.c_str(), recordLength);
-}
 
-void binaryToCSV() {
-    string inputCSVFileName = "Data/us_postal_codes.csv";
-    string binaryFile = "Data/newBinaryPCodes.dat";
-	string outputCSVFile = "Data/converted_postal_codes.csv";
+// A single function to create both the binary file and its index.
+void createBinaryAndIndex(const string& inputCSV, const string& outputBinary, const string& outputIndex) {
+    cout << "Processing " << inputCSV << " to create binary data file...\n";
+    processFile(inputCSV, outputBinary);
 
-    processFile(inputCSVFileName, binaryFile);
-	readBinaryFile(binaryFile, outputCSVFile);
-
+    cout << "Building index from " << outputBinary << "...\n";
+    IndexManager index;
+    index.buildIndex(outputBinary);
+    index.writeIndex(outputIndex);
+    cout << "Index file " << outputIndex << " created successfully.\n";
 }

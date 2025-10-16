@@ -10,8 +10,7 @@
 
 /**
  * @brief Builds the index by scanning through the binary data file.
- * 
- * Each record starts with a 4-byte length field followed by CSV data.
+ * * Each record starts with a 4-byte length field followed by CSV data.
  * We read each record, extract the ZIP code, and record its offset.
  */
 void IndexManager::buildIndex(const std::string& dataFileName) {
@@ -29,12 +28,14 @@ void IndexManager::buildIndex(const std::string& dataFileName) {
         return;
     }
 
-    uint64_t offset = 0;
+    uint64_t offset = static_cast<uint64_t>(dataFile.tellg());
     uint32_t recordLength = 0;
 
+    // CORRECTED: The offset is now captured BEFORE reading the record length.
     while (dataFile.read(reinterpret_cast<char*>(&recordLength), sizeof(recordLength))) {
-        offset = static_cast<uint64_t>(dataFile.tellg());
         std::string record(recordLength, '\0');
+        // Read the record data but don't advance the main file pointer yet,
+        // so we can seek from our current position easily.
         dataFile.read(&record[0], recordLength);
 
         std::istringstream ss(record);
@@ -44,15 +45,15 @@ void IndexManager::buildIndex(const std::string& dataFileName) {
         // Remove quotes and whitespace
         zip.erase(std::remove(zip.begin(), zip.end(), '"'), zip.end());
         zip.erase(std::remove_if(zip.begin(), zip.end(),
-            [](char c){ return std::isspace(static_cast<unsigned char>(c)); }), zip.end());
-
-        if (zip == "ZipCode" || zip.empty()) continue;
+            [](unsigned char c){ return std::isspace(c); }), zip.end());
 
         // Only keep numeric ZIP codes
-        if (std::all_of(zip.begin(), zip.end(),
-            [](char c){ return std::isdigit(static_cast<unsigned char>(c)); })) {
+        if (!zip.empty() && std::all_of(zip.begin(), zip.end(), ::isdigit)) {
             indexMap[zip] = offset;
         }
+        
+        // Update offset for the next record
+        offset = static_cast<uint64_t>(dataFile.tellg());
     }
 
     dataFile.close();
@@ -64,7 +65,7 @@ void IndexManager::buildIndex(const std::string& dataFileName) {
  * Format:
  * [entryCount:uint32_t]
  * For each entry:
- *   [keyLen:uint16_t][ZIP chars][offset:uint64_t]
+ * [keyLen:uint16_t][ZIP chars][offset:uint64_t]
  */
 void IndexManager::writeIndex(const std::string& indexFileName) const {
     std::ofstream out(indexFileName, std::ios::binary);

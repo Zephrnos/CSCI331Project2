@@ -28,26 +28,35 @@ int main(int argc, char* argv[]) {
     // --- Step 1: Ensure binary and index exist ---
     const string binaryFile = "Data/newBinaryPCodes.dat";
     const string indexFile = "Data/zip.idx";
+    const string sourceCSV = "Data/us_postal_codes.csv";
 
     ifstream testBin(binaryFile, ios::binary);
-    if (!testBin.good()) {
-        cout << "Binary or index missing — rebuilding from CSV...\n";
-        binaryToCSV(); // creates zip_len.dat and zip.idx
-    }
-    testBin.close();
+    ifstream testIdx(indexFile, ios::binary);
 
-    // --- Part 1: Compute state extremes (from converted CSV) ---
+    // CORRECTED: Check for both files before proceeding.
+    if (!testBin.good() || !testIdx.good()) {
+        cout << "Binary or index missing — rebuilding from CSV...\n";
+        testBin.close();
+        testIdx.close();
+        createBinaryAndIndex(sourceCSV, binaryFile, indexFile);
+    } else {
+        testBin.close();
+        testIdx.close();
+    }
+
+
+    // --- Part 1: Compute state extremes (from original CSV) ---
     map<string, StateRecord> all_states;
     ZipCodeRecordBuffer buffer;
-    ifstream file("Data/converted_postal_codes.csv");
+    ifstream file(sourceCSV); // More efficient to use the original source
 
     if (!file.is_open()) {
-        cerr << "Error opening Data/converted_postal_codes.csv" << endl;
+        cerr << "Error opening " << sourceCSV << endl;
         return 1;
     }
 
     string header;
-    getline(file, header);
+    getline(file, header); // Skip header
 
     while (buffer.ReadRecord(file)) {
         string state = buffer.getState();
@@ -66,7 +75,7 @@ int main(int argc, char* argv[]) {
         if (latitude < record.southernmost_lat) { record.southernmost_lat = latitude; record.southernmost_zip = zip; }
     }
     file.close();
-// Extreme headers for zipcode project 1
+
     // Print state extremes summary
     cout << left << setw(8) << "State"
          << setw(15) << "Easternmost"
@@ -88,7 +97,7 @@ int main(int argc, char* argv[]) {
 
     // --- Part 2: Load index and handle ZIP code flags ---
     IndexManager index;
-    index.readIndex("Data/zip.idx");
+    index.readIndex(indexFile);
 
     cout << "\n--- ZIP Code Search Results ---\n";
 
@@ -96,9 +105,8 @@ int main(int argc, char* argv[]) {
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
 
-        // Look for flags that start with "-Z"
         if (arg.rfind("-Z", 0) == 0 && arg.size() > 2) {
-            string zipInput = arg.substr(2); // Get the ZIP after "-Z"
+            string zipInput = arg.substr(2);
             foundAny = true;
 
             uint64_t offset = index.findOffset(zipInput);
@@ -107,7 +115,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
-            ifstream binFile("Data/newBinaryPCodes.dat", ios::binary);
+            ifstream binFile(binaryFile, ios::binary);
             if (!binFile.is_open()) {
                 cerr << "Error opening binary data file.\n";
                 return 1;
@@ -162,7 +170,7 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        ifstream binFile("Data/newBinaryPCodes.dat", ios::binary);
+        ifstream binFile(binaryFile, ios::binary);
         if (!binFile.is_open()) {
             cerr << "Error opening binary data file.\n";
             break;
