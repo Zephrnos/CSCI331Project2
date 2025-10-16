@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
         if (latitude < record.southernmost_lat) { record.southernmost_lat = latitude; record.southernmost_zip = zip; }
     }
     file.close();
-/* Extreme headers for zipcode project 1
+// Extreme headers for zipcode project 1
     // Print state extremes summary
     cout << left << setw(8) << "State"
          << setw(15) << "Easternmost"
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
          << setw(15) << "Southernmost"
          << "\n";
     cout << string(68, '-') << "\n";
-*/
+
     for (const auto& pair : all_states) {
         const auto& record = pair.second;
         cout << left << setw(8) << pair.first
