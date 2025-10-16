@@ -97,7 +97,7 @@ void lenRead(ofstream& output, const string& record) {
 
 void binaryToCSV() {
     string inputCSVFileName = "Data/us_postal_codes.csv";
-    string binaryFile = "Data/zip_len.dat";
+    string binaryFile = "Data/newBinaryPCodes.dat";
 	string outputCSVFile = "Data/converted_postal_codes.csv";
 
     processFile(inputCSVFileName, binaryFile);
