@@ -26,7 +26,7 @@ struct StateRecord {
 
 int main(int argc, char* argv[]) {
     // --- Step 1: Ensure binary and index exist ---
-    const string binaryFile = "Data/zip_len.dat";
+    const string binaryFile = "Data/newBinaryPCodes.dat";
     const string indexFile = "Data/zip.idx";
 
     ifstream testBin(binaryFile, ios::binary);
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
-            ifstream binFile("Data/zip_len.dat", ios::binary);
+            ifstream binFile("Data/newBinaryPCodes.dat", ios::binary);
             if (!binFile.is_open()) {
                 cerr << "Error opening binary data file.\n";
                 return 1;
@@ -141,6 +141,58 @@ int main(int argc, char* argv[]) {
 
     if (!foundAny) {
         cout << "No ZIP codes provided. Use flags like: -Z56301 -Z90210\n";
+    }
+
+    // Interactive ZIP code lookup
+    cout << "\n=== Interactive ZIP Code Lookup ===\n";
+    cout << "Enter ZIP codes to search (numbers only) or enter 'q' to quit \n";
+    
+    string zipInput;
+    while (true) {
+        cout << "\nEnter ZIP code: ";
+        cin >> zipInput;
+        
+        if (zipInput == "q" || zipInput == "Q") break;
+        
+        cout << "\nSearching for ZIP code " << zipInput << "... (please wait)\n";
+        uint64_t offset = index.findOffset(zipInput);
+        if (offset == UINT64_MAX) {
+            cout << "ZIP code " << zipInput << " not found.\n";
+            cout << "\n========================================\n";
+            continue;
+        }
+
+        ifstream binFile("Data/newBinaryPCodes.dat", ios::binary);
+        if (!binFile.is_open()) {
+            cerr << "Error opening binary data file.\n";
+            break;
+        }
+
+        binFile.seekg(offset, ios::beg);
+
+        uint32_t recordLength;
+        binFile.read(reinterpret_cast<char*>(&recordLength), sizeof(recordLength));
+
+        string record(recordLength, '\0');
+        binFile.read(&record[0], recordLength);
+
+        ZipCodeRecordBuffer zipBuffer;
+        istringstream ss(record);
+        if (zipBuffer.ReadRecord(ss)) {
+            cout << "\nFound ZIP code! Details:\n";
+            cout << "---------------------------------------------\n";
+            cout << "ZIP Code: " << zipBuffer.getZipCode() << "\n"
+                 << "Place Name: " << zipBuffer.getPlaceName() << "\n"
+                 << "State: " << zipBuffer.getState() << "\n"
+                 << "County: " << zipBuffer.getCounty() << "\n"
+                 << "Latitude: " << zipBuffer.getLatitude() << "\n"
+                 << "Longitude: " << zipBuffer.getLongitude() << "\n"
+                 << "---------------------------------------------\n";
+        } else {
+            cerr << "Error parsing record for ZIP code " << zipInput << endl;
+        }
+
+        binFile.close();
     }
 
     cout << "\nProgram complete.\n";
